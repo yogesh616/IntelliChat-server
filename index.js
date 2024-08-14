@@ -2,9 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
+const cors = require('cors');
+
 const port = process.env.PORT || 3000;
 const app = express();
+
 app.use(express.json());
+app.use(cors({
+    origin: '*' // Allow all origins for now, consider restricting in production
+}));
 
 app.post('/', async (req, res) => {
     const prompt = req.body.prompt;
@@ -21,11 +27,26 @@ app.post('/', async (req, res) => {
         });
 
         const $ = cheerio.load(data);
+        const allData = $('div.BNeawe').text();
         const result = $('div.BNeawe').first().text();
-        
-        console.log(result); // Prints the first result
-        
-        res.json({ result });
+        let vectorData = [];
+
+        $('div.BNeawe').each((index, element) => {
+            vectorData.push($(element).text());
+          
+
+            if (vectorData.length >= 4) {
+                return false; // break the loop
+                
+            }
+        });
+        const longestData =  vectorData.reduce((current, val) => current.length > val.length ? current : val);
+        console.log('longestData', longestData);
+
+      //  console.log(result); // Prints the first result
+        console.log(vectorData);
+
+        res.json({ longestData, result, vectorData });
     } catch (error) {
         console.error('Error:', error.message);
         res.status(500).send('Server Error');
