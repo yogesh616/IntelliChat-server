@@ -28,25 +28,30 @@ app.post('/', async (req, res) => {
 
         const $ = cheerio.load(data);
         const allData = $('div.BNeawe').text();
-        const result = $('div.BNeawe').first().text();
-        let vectorData = [];
+        const result = $('div.BNeawe').first().html();
+       let vectorData = [];
 
         $('div.BNeawe').each((index, element) => {
             vectorData.push($(element).text());
           
 
-            if (vectorData.length >= 4) {
+            if (vectorData.length >= 10) {
                 return false; // break the loop
                 
             }
         });
         const longestData =  vectorData.reduce((current, val) => current.length > val.length ? current : val);
-        console.log('longestData', longestData);
+      console.log('longestData', longestData);
+          console.log(vectorData);
+       // console.log(result); // Prints the first result
+      //  if (longestData.length > 0) {
+      //      const sendToModel = await axios.post('http://127.0.0.1:5000/summarize', {
+       //         text: longestData
+         //   })
+         //   res.json({ result: sendToModel.summary });
+      //  }
 
-      //  console.log(result); // Prints the first result
-        console.log(vectorData);
-
-        res.json({ longestData, result, vectorData });
+       // res.json({ longestData, vectorData });
     } catch (error) {
         console.error('Error:', error.message);
         res.status(500).send('Server Error');
