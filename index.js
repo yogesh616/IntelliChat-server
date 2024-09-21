@@ -14,7 +14,7 @@ app.use(express.json());
 
 // CORS configuration: Restrict to specific domains (important for production)
 app.use(cors({
-    origin: 'https://intelli-chat-two.vercel.app/' // Allow only this domain in production
+    origin: '*' // Allow only this domain in production
 }));
 
 // Rate Limiting to prevent abuse
