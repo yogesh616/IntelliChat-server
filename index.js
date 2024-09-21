@@ -14,7 +14,7 @@ app.use(express.json());
 
 // CORS configuration: Restrict to specific domains (important for production)
 app.use(cors({
-    origin: 'https://intelli-chat-two.vercel.app' // Allow only this domain in production
+    origin: 'https://intelli-chat-two.vercel.app/' // Allow only this domain in production
 }));
 
 // Rate Limiting to prevent abuse
@@ -29,6 +29,21 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'))
 })
 
+// Helper function for scraping data from a URL
+const scrapeWebsite = async (url) => {
+    try {
+        const { data } = await axios.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+            }
+        });
+        return cheerio.load(data); // Load HTML into Cheerio
+    } catch (error) {
+        console.error(`Error scraping ${url}:`, error.message);
+        return null;
+    }
+};
+
 // Main POST route
 app.post('/', async (req, res) => {
     const prompt = req.body.prompt;
@@ -37,50 +52,73 @@ app.post('/', async (req, res) => {
     if (!prompt) {
         return res.status(400).json({ error: 'Prompt is required' });
     }
-    
-    const url = `https://www.google.com/search?q=${encodeURIComponent(prompt)}`;
-    
+
+    // URLs for Google, Wikipedia, and Reddit
+    const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(prompt)}`;
+    const yahooUrl = `https://in.search.yahoo.com/search;_ylt=AwrPpjUJzO5mGQQA2ta7HAx.;_ylc=X1MDMjExNDcyMzAwMwRfcgMyBGZyA3NmcARmcjIDc2ItdG9wBGdwcmlkA3paVThlZ3dpUzguYlFaS20yVm1TZUEEbl9yc2x0AzAEbl9zdWdnAzkEb3JpZ2luA2luLnNlYXJjaC55YWhvby5jb20EcG9zAzAEcHFzdHIDBHBxc3RybAMwBHFzdHJsAzE1BHF1ZXJ5A3doYXQlMjBpcyUyMGNoYXRncHQEdF9zdG1wAzE3MjY5MjU4NTA-?p=${encodeURIComponent(prompt)}&fr=sfp&fr2=sb-top`
+   
+    const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(prompt)}`;
+
     try {
-        // Perform the Google search request
-        const { data } = await axios.get(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-            }
-        });
+        // Scrape Google, Wikipedia, and Reddit
+        const [googleData, yahooData, bingData] = await Promise.all([
+            scrapeWebsite(googleUrl),
+            scrapeWebsite(yahooUrl),
+            scrapeWebsite(bingUrl)
+        ]);
 
-        // Load the HTML into Cheerio
-        const $ = cheerio.load(data);
+        // Extract data from Google search results
+        let googleResults = [];
+        if (googleData) {
+            googleData('div.BNeawe').slice(0, 4).each((index, element) => {
+                googleResults.push(googleData(element).text());
+            });
+        }
+        let longestData = googleResults.reduce((longest, current) => {
+            return current.length > longest.length ? current : longest;
+        }, "");
 
-        // Ensure there is data in the response
-        if (!$('div.BNeawe').length) {
-            return res.status(404).json({ error: 'No data found in the response' });
+        // Extract summary from Wikipedia
+        let yahooSummary = [];
+        if (yahooData) {
+           // yahooSummary = yahooData('div#right div').text(); // Get the first 
+         //  yahooSummary.push(yahooData('div.fc-falcon p').text());
+
+           const linkHref = yahooData('a.thmb').attr('href');
+           const imgSrc = yahooData('img.s-img').attr('src');
+            yahooSummary = { href: linkHref, src: imgSrc };
+           
+           
         }
 
-        // Extracting data from Google search results (first 4 items)
-        let vectorData = [];
-        $('div.BNeawe').slice(0, 4).each((index, element) => {
-            vectorData.push($(element).text());
-        });
+        // Extract top 4 Reddit posts
+        
+        let bingResults = '';
+if (bingData) {
+    const bingResults = bingData('.l_ecrd_txt_pln').text();
 
-        // Find the longest data in the vectorData array
-        const longestData = vectorData.reduce((current, val) => current.length > val.length ? current : val, '');
+    
+}
 
-        // If no data is found in the vector
-        if (vectorData.length === 0) {
-            return res.status(404).json({ error: 'No results found' });
-        }
 
-        // Send the extracted data as a response
-        res.json({ longestData, vectorData });
+        // Consolidate the results
+        const consolidatedResults = {
+            longestData,
+            yahooSummary,
+            bingResults
+        };
+
+        // Send the consolidated data as a response
+        res.json(consolidatedResults);
 
     } catch (error) {
         console.error('Error:', error.message);
         // Send a user-friendly error message in case of failure
-        res.status(500).json({ error: 'Failed to retrieve data from Google Search. Please try again later.' });
+        res.status(500).json({ error: 'Failed to retrieve data from one or more sources. Please try again later.' });
     }
 });
 
 // Start the Express server
 app.listen(port, () => {
-   
+    console.log(`Server is running on port ${port}`);
 });
