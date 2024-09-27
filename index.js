@@ -69,10 +69,32 @@ app.post('/', async (req, res) => {
 
         // Extract data from Google search results
         let googleResults = [];
+        let audioURL;
         if (googleData) {
             googleData('div.BNeawe').slice(0, 4).each((index, element) => {
                 googleResults.push(googleData(element).text());
             });
+            // Finding audio file url
+
+            const results = googleData('div.egMi0 ');
+            const resultLinks = results.find('a').attr('href')
+            const URL =  new URLSearchParams(resultLinks)
+            
+            const mainURL = URL.get('url')
+            if (mainURL) {
+                const response = await axios.get(mainURL, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+                }
+            });
+            const $data = cheerio.load(response.data);
+            const extractedData = $data('audio source').attr('src');
+            if (extractedData) {
+                audioURL = encodeURI(extractedData)
+            }
+
+          //  console.log('extractedData', audioURL); // Prints the first result
+        }
         }
         let longestData = googleResults.reduce((longest, current) => {
             return current.length > longest.length ? current : longest;
@@ -105,7 +127,7 @@ if (bingData) {
         const consolidatedResults = {
             longestData,
             yahooSummary,
-            bingResults
+            bingResults, audioURL
         };
 
         // Send the consolidated data as a response
