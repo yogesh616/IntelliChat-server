@@ -60,7 +60,7 @@ app.post('/', async (req, res) => {
 
         // Google results extraction
         let googleResults = [];
-        let audioURL = null; // Default to null in case no audio is found
+        let audioURL; // Default to null in case no audio is found
         if (googleData) {
             googleData('div.BNeawe').slice(0, 4).each((index, element) => {
                 googleResults.push(googleData(element).text());
